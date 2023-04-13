@@ -50,6 +50,11 @@ github: https://github.com/xBZZZZ/abpy
 			None if password is None else bytes(password,"ascii")
 		)
 	if mode=="tar2ab":
+		try:
+			version=int(args["ver"])
+		except KeyError:
+			stderr.write("ver=... argument is required\n")
+			exit(1)
 		flags=frozenset(args.get("flags",""))
 		encrypt="e" in flags or "pass" in args or "rounds" in args
 		if encrypt:
@@ -64,11 +69,6 @@ github: https://github.com/xBZZZZ/abpy
 				password=args["pass"]
 			except KeyError:
 				password=ask_pass()
-		try:
-			version=int(args["ver"])
-		except KeyError:
-			stderr.write("ver=... argument is required\n")
-			exit(1)
 		tar2ab_main(
 			stdin.buffer if infile_path is None else open(infile_path,"rb"),
 			stdout.buffer if outfile_path is None else open(outfile_path,"wb"),
