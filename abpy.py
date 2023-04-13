@@ -10,7 +10,7 @@ def main():
 \t--help
 \tmode=abinfo [if=...] [of=...]
 \tmode=ab2tar [if=...] [of=...] [pass=...]
-\tmode=tar2ab [if=...] [of=...] [pass=...] [rounds=...] [ver=...] [flags=[e][c]]
+\tmode=tar2ab [if=...] [of=...] [pass=...] [rounds=...] ver=... [flags=[e][c]]
 
 [STRING] means STRING is optional
 ... means put something here
@@ -65,11 +65,10 @@ github: https://github.com/xBZZZZ/abpy
 			except KeyError:
 				password=ask_pass()
 		try:
-			version=bytes(args["ver"],"ascii")
-			if 10 in version:
-				stderr.write("ver=... must not contain newline\n")
+			version=int(args["ver"])
 		except KeyError:
-			version=b"5"
+			stderr.write("ver=... argument is required\n")
+			exit(1)
 		tar2ab_main(
 			stdin.buffer if infile_path is None else open(infile_path,"rb"),
 			stdout.buffer if outfile_path is None else open(outfile_path,"wb"),
@@ -87,8 +86,7 @@ def abinfo_main(infile,outfile):
 		o.append(99)
 	if encryption_info is not None:
 		o.extend(b"e\nrounds=%d"%encryption_info[2])
-	o.extend(b"\nver=")
-	o.extend(version)
+	o.extend(b"\nver=%d\n"%version)
 	outfile.write(o)
 	exit(0)
 
@@ -100,6 +98,7 @@ def ab2tar_main(infile,outfile,password):
 		if compressed:
 			from zlib import decompressobj
 			decompressor=decompressobj(15)
+			del decompressobj
 			while True:
 				l=infile.readinto(data)
 				if not l:
@@ -188,7 +187,7 @@ def tar2ab_main(infile,outfile,version,encrypt_info,compress):
 		data_iv=rb[176:]
 		rounds,password=encrypt_info
 		del rb,get_random_bytes,encrypt_info
-		outfile.write(b"ANDROID BACKUP\n%b\n%x\nAES-256\n%b\n%b\n%d\n%b\n%b\n"%(
+		outfile.write(b"ANDROID BACKUP\n%d\n%x\nAES-256\n%b\n%b\n%d\n%b\n%b\n"%(
 			version,compress,
 			b2a_hex(password_salt).upper(),
 			b2a_hex(master_key_checksum_salt).upper(),
@@ -241,7 +240,7 @@ def tar2ab_main(infile,outfile,version,encrypt_info,compress):
 				exit(0)
 			encryptor.encrypt(data,data)
 			outfile.write(data)
-	outfile.write(b"ANDROID BACKUP\n%b\n%x\nnone\n"%(
+	outfile.write(b"ANDROID BACKUP\n%d\n%x\nnone\n"%(
 		version,compress
 	))
 	del encrypt_info,version
