@@ -180,7 +180,7 @@ def tar2ab_main(infile,outfile,version,encrypt_info,compress):
 		from Crypto.Random import get_random_bytes
 		rounds,password=encrypt_info
 		rb=get_random_bytes(192)
-		master_key=bytes(map((127).__and__,rb[:32]))
+		master_key=bytes(b>>1 for b in rb[:32])
 		password_salt=rb[32:96]
 		master_key_checksum_salt=rb[96:160]
 		master_key_blob_iv=rb[160:176]
