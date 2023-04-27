@@ -4,59 +4,109 @@ READ_BUF_SIZE=2*1024*1024
 MAX_DECOMPRESS_SIZE=4*1024*1024
 
 def main():
-	args=argv[1:]
-	if "--help" in args:
-		stdout.write("""usages:
+	args=argv.__iter__()
+	try:
+		args.__next__()
+		mode=args.__next__()
+	except StopIteration:
+		stderr.write("not enough arguments\nrun with '--help' as first argument for help\n")
+		exit(1)
+	if mode=="--help":
+		stdout.write("""usage:
+\tpython3 /path/to/abpy.py <mode> <string and flag arguments>
+
+mode is always first argument
+
+string argument looks like this:
+\t<name>=<value>
+
+flag argument looks like this:
+\t<name>
+
+modes:
 \t--help
-\tmode=abinfo [if=...] [of=...]
-\tmode=ab2tar [if=...] [of=...] [pass=...]
-\tmode=tar2ab [if=...] [of=...] [pass=...] [rounds=...] ver=... [flags=[e][c]]
+\t\tno arguments
+\t\tprint this help
+\tabinfo
+\t\tstring arguments: if
+\t\tprint arguments for tar2ab mode to make similar ab file
+\tab2tar
+\t\tstring arguments: if, of, pass
+\t\tconvert ab to tar
+\ttar2ab
+\t\tstring arguments: if, of, ver, pass, rounds
+\t\tflag arguments: compr, encr
+\t\tconvert tar to ab
+\t\tver is required integer and means version (line 2 of ab file)
+\t\trounds is optional positive integer (default 10000) and means number of PBKDF2 iterations
+\t\tcompr means zlib compress
+\t\tencr means encrypt (automatically true if pass=... or rounds=... arguments exist)
 
-[STRING] means STRING is optional
 ... means put something here
-
-mode means what to do
 if means input file (default stdin)
 of means output file (default stdout)
-pass means password (implies e flag, ascii only, default ask if needed)
-rounds means number PBKDF2 iterations (implies e flag, positive integer, default 10000)
-ver means version (integer)
-
-flags:
-\te means encrypt
-\tc means compress
+pass means password (default is ask user if needed) (ascii only)
 
 github: https://github.com/xBZZZZ/abpy
 """)
 		exit(0)
-	args=dict(a.split("=",1) for a in args)
-	try:
-		mode=args["mode"]
-	except KeyError:
-		stderr.write("mode=... argument is required\nrun with --help for help\n")
-		exit(1)
-	infile_path=args.get("if",None)
-	outfile_path=args.get("of",None)
+	def parse_args(str_args,flag_args):
+		nonlocal args
+		parsed_names=set()
+		out={}
+		for arg in args:
+			try:
+				name,val=arg.split("=",1)
+			except ValueError:
+				if arg not in flag_args:
+					stderr.write("bad flag argument %r\n"%arg)
+					exit(1)
+				if arg in parsed_names:
+					stderr.write("duplicate flag argument %r\n"%arg)
+					exit(1)
+				parsed_names.add(arg)
+				out[arg]=None
+				continue
+			if name not in str_args:
+				stderr.write("bad string argument name %r\n"%name)
+				exit(1)
+			if name in parsed_names:
+				stderr.write("duplicate string argument name %r\n"%name)
+				exit(1)
+			parsed_names.add(name)
+			out[name]=val
+		args=out
 	if mode=="abinfo":
-		abinfo_main(
-			stdin.buffer if infile_path is None else open(infile_path,"rb"),
-			stdout.buffer if outfile_path is None else open(outfile_path,"wb"),
-		)
+		parse_args(("if",),())
+		try:
+		    f=open(args["if"],"rb")
+		except KeyError:
+			f=stdin.buffer
+		abinfo_main(f)
+	def ifof():
+		try:
+			yield open(args["if"],"rb")
+		except KeyError:
+			yield stdin.buffer
+		try:
+			yield open(args["of"],"wb")
+		except KeyError:
+			yield stdout.buffer
 	if mode=="ab2tar":
-		password=args.get("pass",None)
-		ab2tar_main(
-			stdin.buffer if infile_path is None else open(infile_path,"rb"),
-			stdout.buffer if outfile_path is None else open(outfile_path,"wb"),
-			None if password is None else bytes(password,"ascii")
-		)
+		parse_args({"if","of","pass"},())
+		try:
+			password=bytes(args["pass"],"ascii")
+		except KeyError:
+			password=None
+		ab2tar_main(*ifof(),password)
 	if mode=="tar2ab":
+		parse_args({"if","of","ver","pass","rounds"},{"compr","encr"})
 		try:
 			version=int(args["ver"])
 		except KeyError:
 			stderr.write("ver=... argument is required\n")
 			exit(1)
-		flags=frozenset(args.get("flags",""))
-		encrypt="e" in flags or "pass" in args or "rounds" in args
+		encrypt="encr" in args or "pass" in args or "rounds" in args
 		if encrypt:
 			try:
 				rounds=int(args["rounds"])
@@ -70,24 +120,21 @@ github: https://github.com/xBZZZZ/abpy
 			except KeyError:
 				password=ask_pass()
 		tar2ab_main(
-			stdin.buffer if infile_path is None else open(infile_path,"rb"),
-			stdout.buffer if outfile_path is None else open(outfile_path,"wb"),
+			*ifof(),
 			version,
 			(rounds,password) if encrypt else None,
-			"c" in flags
+			"compr" in args
 		)
-	stderr.write("unknown mode: %s\n"%mode)
+	stderr.write("bad mode %r\nrun with '--help' as first argument for help\n"%mode)
 	exit(1)
 
-def abinfo_main(infile,outfile):
+def abinfo_main(infile):
 	version,compressed,encryption_info=read_header(infile)
-	o=bytearray(b"flags=")
+	stdout.write("ver=%d\n"%version)
 	if compressed:
-		o.append(99)
+		stdout.write("compr\n")
 	if encryption_info is not None:
-		o.extend(b"e\nrounds=%d"%encryption_info[2])
-	o.extend(b"\nver=%d\n"%version)
-	outfile.write(o)
+		stdout.write("encr\nrounds=%d\n"%encryption_info[2])
 	exit(0)
 
 def ab2tar_main(infile,outfile,password):
