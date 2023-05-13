@@ -1,4 +1,4 @@
-from sys import stderr,stdout,stdin,argv
+from sys import stderr,stdout,stdin,argv,exit
 
 READ_BUF_SIZE=2*1024*1024
 MAX_DECOMPRESS_SIZE=4*1024*1024
