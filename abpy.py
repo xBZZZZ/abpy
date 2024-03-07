@@ -302,7 +302,7 @@ def tar2ab_main(infile,outfile,version,encrypt_info,compress):
 				outfile.write(compressor.compress(memoryview(data)[:l]))
 				outfile.write(compressor.flush())
 				exit(0)
-			outfile.write(compressor.compress(memoryview(data)[:l]))
+			outfile.write(compressor.compress(data))
 	while True:
 		l=infile.readinto(data)
 		if l<READ_BUF_SIZE:
