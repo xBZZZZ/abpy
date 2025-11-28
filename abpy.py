@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 from sys import stderr,stdout,stdin,exit
 READ_BUF_SIZE=128*1024
 MAX_DECOMPRESS_SIZE=512*1024
