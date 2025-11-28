@@ -62,7 +62,6 @@ github: https://github.com/xBZZZZ/abpy
 		exit(0)
 	def parse_args(str_args,flag_args):
 		nonlocal args
-		parsed_names=set()
 		out={}
 		for arg in args:
 			try:
@@ -71,19 +70,17 @@ github: https://github.com/xBZZZZ/abpy
 				if arg not in flag_args:
 					stderr.write("bad flag argument %r\n"%arg)
 					exit(1)
-				if arg in parsed_names:
+				if arg in out:
 					stderr.write("duplicate flag argument %r\n"%arg)
 					exit(1)
-				parsed_names.add(arg)
 				out[arg]=None
 				continue
 			if name not in str_args:
 				stderr.write("bad string argument name %r\n"%name)
 				exit(1)
-			if name in parsed_names:
+			if name in out:
 				stderr.write("duplicate string argument name %r\n"%name)
 				exit(1)
-			parsed_names.add(name)
 			out[name]=val
 		args=out
 	if mode=="abinfo":
